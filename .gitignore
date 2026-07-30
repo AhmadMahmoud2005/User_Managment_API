@@ -1,0 +1,21 @@
+# .NET build output
+bin/
+obj/
+
+# IDE
+.vs/
+*.user
+*.suo
+*.DotSettings.user
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets / local overrides
+appsettings.Development.json
+appsettings.*.local.json
+
+# Logs
+*.log
+logs/
