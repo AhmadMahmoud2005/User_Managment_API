@@ -14,28 +14,35 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-var summaries = new[]
+var users = new List<User>
 {
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
+    new User { Id = 1, Name = "Ahmad", Email = "ahmad@example.com", Age = 25 },
+    new User { Id = 2, Name = "Sara", Email = "sara@example.com", Age = 28 },
+    new User { Id = 3, Name = "Omar", Email = "omar@example.com", Age = 30 },
+    new User { Id = 4, Name = "Laila", Email = "laila@example.com", Age = 22 },
+    new User { Id = 5, Name = "Hassan", Email = "hassan@example.com", Age = 35 }
 };
 
-app.MapGet("/weatherforecast", () =>
+// GET all users
+app.MapGet("/users", () => users)
+   .WithName("GetUsers");
+
+// GET user by id
+app.MapGet("/users/{id:int}", (int id) =>
 {
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
+    var user = users.FirstOrDefault(u => u.Id == id);
+    return user is not null ? Results.Ok(user) : Results.NotFound();
 })
-.WithName("GetWeatherForecast");
+.WithName("GetUserById");
+
+// POST new user
+app.MapPost("/users", (User newUser) =>
+{
+    // Assign a new Id automatically
+    newUser.Id = users.Max(u => u.Id) + 1;
+    users.Add(newUser);
+    return Results.Created($"/users/{newUser.Id}", newUser);
+})
+.WithName("CreateUser");
 
 app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
