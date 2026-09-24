@@ -62,4 +62,29 @@ app.MapPost("/users", (User newUser) =>
 })
 .WithName("CreateUser");
 
+// PUT new user
+app.MapPut("/users/{id:int:min(0)}", (int id, User newUser) => {
+    var user = users.FirstOrDefault(u => u.Id == id);
+    if (user == null) return Results.NotFound($"{id} not found");
+
+    user.Name = newUser.Name;
+    user.Email= newUser.Email;
+    user.Age = newUser.Age ;
+
+    return Results.Ok(user);
+})
+.WithName("UpdateUser")
+.RequireAuthorization();
+
+// Delete user by id
+app.MapDelete("/users/{id:int:min(0)}", (int id) =>
+{
+    var user = users.FirstOrDefault(u => u.Id == id);
+    if (user == null) return Results.NotFound($"{id} not found");
+    users.Remove(user);
+    return Results.NoContent();
+})
+.WithName("DeleteUser")
+.RequireAuthorization();
+
 app.Run();
