@@ -1,18 +1,33 @@
+using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+builder.Services.AddAuthentication();
+builder.Services.AddAuthorization();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+if (!app.Environment.IsDevelopment())
+{
+    app.UseExceptionHandler("/Home/Error");
+}
+else
 {
     app.MapOpenApi();
+    app.UseDeveloperExceptionPage();
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
-
 app.UseHttpsRedirection();
+app.UseAuthentication();
+app.UseAuthorization();
 
 var users = new List<User>
 {
@@ -22,6 +37,8 @@ var users = new List<User>
     new User { Id = 4, Name = "Laila", Email = "laila@example.com", Age = 22 },
     new User { Id = 5, Name = "Hassan", Email = "hassan@example.com", Age = 35 }
 };
+
+app.MapGet("/", () => "Hello from root").ExcludeFromDescription();
 
 // GET all users
 app.MapGet("/users", () => users)
