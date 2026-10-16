@@ -41,31 +41,38 @@ var users = new List<User>
 app.MapGet("/", () => "Hello from root").ExcludeFromDescription();
 
 // GET all users
-app.MapGet("/users", () => users)
-   .WithName("GetUsers");
+app.MapGet("/users", (int? skip, int? take) =>
+{
+    var res = users.Skip(skip ?? 0).Take(take ?? users.Count).ToList();
+    return Results.Ok(res);
+})
+.WithName("GetUsers");
 
 // GET user by id
 app.MapGet("/users/{id:int}", (int id) =>
 {
     var user = users.FirstOrDefault(u => u.Id == id);
-    return user is not null ? Results.Ok(user) : Results.NotFound();
+    return user is not null ? Results.Ok(user) : Results.NotFound(new { mesage = $"There's no user with id: {id}"});
 })
 .WithName("GetUserById");
 
 // POST new user
 app.MapPost("/users", (User newUser) =>
 {
+    if (!UserValidator.IsValid(newUser))
+        return Results.BadRequest(new {message = "Invalid user data"});
     // Assign a new Id automatically
-    newUser.Id = users.Max(u => u.Id) + 1;
+    newUser.Id = users.Any() ? users.Max(u => u.Id) + 1 : 1;
     users.Add(newUser);
     return Results.Created($"/users/{newUser.Id}", newUser);
 })
 .WithName("CreateUser");
 
 // PUT new user
-app.MapPut("/users/{id:int:min(0)}", (int id, User newUser) => {
+var updateRoute = app.MapPut("/users/{id:int:min(0)}", (int id, User newUser) => {
     var user = users.FirstOrDefault(u => u.Id == id);
     if (user == null) return Results.NotFound($"{id} not found");
+    if (!UserValidator.IsValid(newUser)) return Results.BadRequest(new {message = "Invalid user data"});
 
     user.Name = newUser.Name;
     user.Email= newUser.Email;
@@ -73,18 +80,27 @@ app.MapPut("/users/{id:int:min(0)}", (int id, User newUser) => {
 
     return Results.Ok(user);
 })
-.WithName("UpdateUser")
-.RequireAuthorization();
+.WithName("UpdateUser");
 
 // Delete user by id
-app.MapDelete("/users/{id:int:min(0)}", (int id) =>
+var deleteRoute = app.MapDelete("/users/{id:int:min(0)}", (int id) =>
 {
     var user = users.FirstOrDefault(u => u.Id == id);
     if (user == null) return Results.NotFound($"{id} not found");
     users.Remove(user);
     return Results.NoContent();
 })
-.WithName("DeleteUser")
-.RequireAuthorization();
+.WithName("DeleteUser");
+
+if (app.Environment.IsDevelopment())
+{
+    updateRoute.AllowAnonymous();
+    deleteRoute.AllowAnonymous();
+}
+else
+{
+    updateRoute.RequireAuthorization();
+    deleteRoute.RequireAuthorization();
+}
 
 app.Run();
