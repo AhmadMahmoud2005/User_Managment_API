@@ -1,5 +1,8 @@
+using System.Diagnostics.Metrics;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using UserManagementAPI.Extensions;
+using UserManagementAPI.Middlewares;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,6 +13,9 @@ builder.Services.AddAuthentication();
 builder.Services.AddAuthorization();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddSingleton<RequestCountService>();
+// builder.Services.AddScoped<RequestCountService>();
+// builder.Services.AddTransient<RequestCountService>();
 
 var app = builder.Build();
 
