@@ -35,6 +35,8 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.UseRequestCounter();
+
 var users = new List<User>
 {
     new User { Id = 1, Name = "Ahmad", Email = "ahmad@example.com", Age = 25 },
@@ -45,6 +47,7 @@ var users = new List<User>
 };
 
 app.MapGet("/", () => "Hello from root").ExcludeFromDescription();
+app.MapGet("/users/count", (RequestCountService counter) => counter.GetAllCounts());
 
 // GET all users
 app.MapGet("/users", (int? skip, int? take) =>
