@@ -4,3 +4,4 @@ GET {{UserManagementAPI_HostAddress}}/weatherforecast/
 Accept: application/json
 
 ###
+GET {{UserManagementAPI_HostAddress}}/users/

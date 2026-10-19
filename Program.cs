@@ -3,6 +3,7 @@ using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Serilog;
 using UserManagementAPI.Extensions;
 using UserManagementAPI.Middlewares;
 
@@ -27,7 +28,27 @@ builder.Services.AddRateLimiter(options =>
         options.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
         options.QueueLimit = 2;
     });
+
+    options.OnRejected = (context, cancellationToken) =>
+    {
+        var logger = context.HttpContext.RequestServices
+        .GetRequiredService<ILoggerFactory>()
+        .CreateLogger("RateLimiting");
+
+        logger.LogWarning(
+            "Rate limit rejected request {Method} {Path}",
+            context.HttpContext.Request.Method,
+            context.HttpContext.Request.Path
+        );
+
+        context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        return ValueTask.CompletedTask;
+    };
 });
+builder.Host.UseSerilog((context, configuration) =>
+    configuration.ReadFrom.Configuration(context.Configuration));
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
 
 var app = builder.Build();
 
