@@ -1,6 +1,8 @@
 using System.Diagnostics.Metrics;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using UserManagementAPI.Extensions;
 using UserManagementAPI.Middlewares;
 
@@ -16,6 +18,16 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddSingleton<RequestCountService>();
 // builder.Services.AddScoped<RequestCountService>();
 // builder.Services.AddTransient<RequestCountService>();
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddFixedWindowLimiter(policyName: "fixed", options =>
+    {
+        options.PermitLimit = 2;
+        options.Window = TimeSpan.FromSeconds(5);
+        options.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        options.QueueLimit = 2;
+    });
+});
 
 var app = builder.Build();
 
@@ -32,6 +44,9 @@ else
     app.UseSwaggerUI();
 }
 app.UseHttpsRedirection();
+
+app.UseRouting();
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -47,7 +62,8 @@ var users = new List<User>
 };
 
 app.MapGet("/", () => "Hello from root").ExcludeFromDescription();
-app.MapGet("/users/count", (RequestCountService counter) => counter.GetAllCounts());
+app.MapGet("/users/counts", (RequestCountService counter) => counter.GetAllCounts())
+.RequireRateLimiting("fixed");
 
 // GET all users
 app.MapGet("/users", (int? skip, int? take) =>
@@ -55,7 +71,8 @@ app.MapGet("/users", (int? skip, int? take) =>
     var res = users.Skip(skip ?? 0).Take(take ?? users.Count).ToList();
     return Results.Ok(res);
 })
-.WithName("GetUsers");
+.WithName("GetUsers")
+.RequireRateLimiting("fixed");
 
 // GET user by id
 app.MapGet("/users/{id:int}", (int id) =>
