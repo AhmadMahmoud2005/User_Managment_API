@@ -48,7 +48,7 @@ builder.Services.AddRateLimiter(options =>
 builder.Host.UseSerilog((context, configuration) =>
     configuration.ReadFrom.Configuration(context.Configuration));
 builder.Logging.ClearProviders();
-builder.Logging.AddConsole();
+// builder.Logging.AddConsole();
 
 var app = builder.Build();
 
@@ -66,6 +66,7 @@ else
 }
 app.UseHttpsRedirection();
 
+app.UseMiddleware<ErrorHandlingMiddleware>();
 app.UseRouting();
 app.UseRateLimiter();
 app.UseAuthentication();
@@ -83,7 +84,11 @@ var users = new List<User>
     new User { Id = 5, Name = "Hassan", Email = "hassan@example.com", Age = 35 }
 };
 
-app.MapGet("/", () => "Hello from root").ExcludeFromDescription();
+app.MapGet("/", () => "Hello from Root").ExcludeFromDescription();
+app.MapGet("/test-error", () =>
+{
+    throw new InvalidOperationException("Testing Exception Handling");
+});
 app.MapGet("/users/counts", (RequestCountService counter) => counter.GetAllCounts())
 .RequireRateLimiting("fixed");
 
@@ -151,4 +156,15 @@ else
     deleteRoute.RequireAuthorization();
 }
 
-app.Run();
+try
+{
+    app.Run();
+}
+catch (System.Exception ex)
+{
+    Log.Fatal(ex, "Host terminated");
+}
+finally
+{
+    Log.CloseAndFlush();
+}

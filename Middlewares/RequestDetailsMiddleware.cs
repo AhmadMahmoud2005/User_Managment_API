@@ -1,24 +1,32 @@
 using System;
+using System.Diagnostics;
 using Microsoft.OpenApi;
-using Serilog;
 
 namespace UserManagementAPI.Middlewares;
 
 public class RequestDetailsMiddleware
 {
    private readonly RequestDelegate _next;
-   public RequestDetailsMiddleware(RequestDelegate next)
+   private readonly ILogger<RequestDetailsMiddleware> _logger;
+   public RequestDetailsMiddleware(RequestDelegate next, ILogger<RequestDetailsMiddleware> logger)
    {
       _next = next;
+      _logger = logger;
    }
 
    public async Task InvokeAsync(HttpContext context)
    {
-      var startTime = DateTime.UtcNow;
-      Log.Information($"Path of Request: {context.Request.Path}");
-      await _next(context);
-      Log.Information($"Status code: {context.Response.StatusCode}");
-      var duration = DateTime.UtcNow - startTime;
-      Log.Information($"Duration: {duration}");
+      var startTime = Stopwatch.GetTimestamp();
+      _logger.LogInformation($"Path of Request: {context.Request.Path}");
+      try
+      {
+         await _next(context);
+      }
+      finally
+      {
+         _logger.LogInformation($"Status code: {context.Response.StatusCode}");
+         var duration = Stopwatch.GetElapsedTime(startTime);
+         _logger.LogInformation($"Duration: {duration}");
+      }
    }
 }

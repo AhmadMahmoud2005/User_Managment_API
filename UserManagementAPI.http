@@ -5,3 +5,9 @@ Accept: application/json
 
 ###
 GET {{UserManagementAPI_HostAddress}}/users/
+
+###
+GET {{UserManagementAPI_HostAddress}}/
+
+###
+GET {{UserManagementAPI_HostAddress}}/test-error/
