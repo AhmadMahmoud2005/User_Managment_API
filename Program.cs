@@ -72,6 +72,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.UseRequestCounter();
+app.UseRequestDetails();
 
 var users = new List<User>
 {
