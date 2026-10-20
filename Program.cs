@@ -38,7 +38,35 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "User API",
+        Version = "v1"
+    });
+
+    // FIX 1: Changed SecuritySchemeType.ApiKey to SecuritySchemeType.Http
+    // FIX 2: Removed "Bearer " prefix instruction from the Description
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "Bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Enter your JWT token directly. Do NOT prefix it with 'Bearer'."
+    });
+
+    // Valid only in .NET 10+ / Swashbuckle v10+
+    options.AddSecurityRequirement(document => new OpenApiSecurityRequirement
+    {
+        [new OpenApiSecuritySchemeReference("Bearer", document)] = []
+    });
+});
+
+
+
 builder.Services.AddSingleton<RequestCountService>();
 // builder.Services.AddScoped<RequestCountService>();
 // builder.Services.AddTransient<RequestCountService>();
