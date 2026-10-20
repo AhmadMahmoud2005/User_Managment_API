@@ -1,19 +1,42 @@
 using System.Diagnostics.Metrics;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
 using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.IdentityModel.Tokens;
+// using NSwag;
+using Microsoft.OpenApi;
 using Serilog;
 using UserManagementAPI.Extensions;
 using UserManagementAPI.Middlewares;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var jwtSettings = builder.Configuration.GetSection("Jwt");
+
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
-builder.Services.AddAuthentication();
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidIssuer = jwtSettings["Issuer"],
+            ValidAudience = jwtSettings["Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(jwtSettings["Key"]!))
+        };
+    });
 builder.Services.AddAuthorization();
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddSingleton<RequestCountService>();
@@ -83,6 +106,12 @@ var users = new List<User>
     new User { Id = 4, Name = "Laila", Email = "laila@example.com", Age = 22 },
     new User { Id = 5, Name = "Hassan", Email = "hassan@example.com", Age = 35 }
 };
+var loginUsers = new List<(string username, string password)>
+{
+    ("Ahmad", "1234"),
+    ("Sara", "abcd"),
+    ("Omar", "pass123")
+};
 
 app.MapGet("/", () => "Hello from Root").ExcludeFromDescription();
 app.MapGet("/test-error", () =>
@@ -109,6 +138,32 @@ app.MapGet("/users/{id:int}", (int id) =>
 })
 .WithName("GetUserById");
 
+// Login
+app.MapPost("/login", (string username, string password) =>
+{
+    var user = loginUsers.FirstOrDefault(u => u.username == username && u.password == password);
+    if (user == default) return Results.Unauthorized();
+    var claims = new[]
+    {
+        new Claim(ClaimTypes.Name, username),
+        new Claim(ClaimTypes.Role, "User")
+    };
+    var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["Key"]!));
+    var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+    var token = new JwtSecurityToken(
+        issuer: jwtSettings["Issuer"],
+        audience: jwtSettings["Audience"],
+        claims: claims,
+        expires: DateTime.Now.AddMinutes(30),
+        signingCredentials: creds
+    );
+
+    var jwt = new JwtSecurityTokenHandler().WriteToken(token);
+
+    return Results.Ok(new { token = jwt });
+});
+
 // POST new user
 app.MapPost("/users", (User newUser) =>
 {
@@ -119,7 +174,8 @@ app.MapPost("/users", (User newUser) =>
     users.Add(newUser);
     return Results.Created($"/users/{newUser.Id}", newUser);
 })
-.WithName("CreateUser");
+.WithName("CreateUser")
+.RequireAuthorization();
 
 // PUT new user
 var updateRoute = app.MapPut("/users/{id:int:min(0)}", (int id, User newUser) => {
