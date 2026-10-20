@@ -17,7 +17,7 @@ public class RequestDetailsMiddleware
    public async Task InvokeAsync(HttpContext context)
    {
       var startTime = Stopwatch.GetTimestamp();
-      _logger.LogInformation($"Path of Request: {context.Request.Path}");
+      _logger.LogInformation($"Path of Request ({context.Request.Method}): {context.Request.Path}");
       try
       {
          await _next(context);
