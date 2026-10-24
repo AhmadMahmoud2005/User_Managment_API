@@ -1,5 +1,6 @@
 using System.Diagnostics.Metrics;
 using System.IdentityModel.Tokens.Jwt;
+using System.Reflection;
 using System.Security.Claims;
 using System.Text;
 using System.Threading.RateLimiting;
@@ -8,7 +9,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
-// using NSwag;
+// using NSwag; // for client api
 using Microsoft.OpenApi;
 using Serilog;
 using UserManagementAPI.Extensions;
@@ -46,26 +47,29 @@ builder.Services.AddSwaggerGen(options =>
         Version = "v1"
     });
 
-    // FIX 1: Changed SecuritySchemeType.ApiKey to SecuritySchemeType.Http
-    // FIX 2: Removed "Bearer " prefix instruction from the Description
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name = "Authorization",
         Type = SecuritySchemeType.Http,
-        Scheme = "Bearer",
+        Scheme = "bearer",
         BearerFormat = "JWT",
         In = ParameterLocation.Header,
-        Description = "Enter your JWT token directly. Do NOT prefix it with 'Bearer'."
+        Description = "Enter your JWT token. Swagger UI will add the Bearer prefix."
     });
 
-    // Valid only in .NET 10+ / Swashbuckle v10+
     options.AddSecurityRequirement(document => new OpenApiSecurityRequirement
     {
         [new OpenApiSecuritySchemeReference("Bearer", document)] = []
     });
+
+    var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+
+    if (File.Exists(xmlPath))
+    {
+        options.IncludeXmlComments(xmlPath);
+    }
 });
-
-
 
 builder.Services.AddSingleton<RequestCountService>();
 // builder.Services.AddScoped<RequestCountService>();
@@ -150,6 +154,11 @@ app.MapGet("/users/counts", (RequestCountService counter) => counter.GetAllCount
 .RequireRateLimiting("fixed");
 
 // GET all users
+/// <summary>
+/// Retrieves a paginated list of all users.
+/// </summary>
+/// <param name="skip">The number of users to skip.</param>
+/// <param name="take">The maximum number of users to return.</param>
 app.MapGet("/users", (int? skip, int? take) =>
 {
     var res = users.Skip(skip ?? 0).Take(take ?? users.Count).ToList();
